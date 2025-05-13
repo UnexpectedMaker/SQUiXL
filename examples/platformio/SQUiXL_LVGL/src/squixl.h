@@ -1,0 +1,154 @@
+#pragma once
+
+#include <vector>
+
+#include "Arduino.h"
+#include "Wire.h"
+#include "UM_LCA9555.h"
+#include "xgt911.h"
+
+#include <bb_spi_lcd.h>
+#include "settings/settings.h"
+#include <LittleFS.h>
+
+// SD Card Stuff
+#include "FS.h"
+#include "SD.h"
+#include "SPI.h"
+
+// Peripherals
+#include "audio/audio.h"
+#include "peripherals/rtc.h"
+#include "peripherals/battery.h"
+#include "peripherals/haptics.h"
+
+// EXP IO
+#define BL_EN 0
+#define LCD_RST 1
+#define TP_RST 5
+#define SOFT_PWR 6
+#define MUX_SEL 8
+#define MUX_EN 9
+#define HAPTICS_EN 10
+#define VBUS_SENSE 11
+#define SD_DETECT 15
+
+// ESP32-S3 IO
+#define BL_PWM 40
+#define TP_INT 3
+
+// IO MUX
+#define MUX_D1 41
+#define MUX_D2 42
+#define MUX_D3 45
+#define MUX_D4 46
+
+#define LCD_DELAY 0xff
+
+// CPU speeds
+#define CPU_LOW_FREQ 40
+#define CPU_HIGH_FREQ 80
+#define CPU_LOW_FREQ_WIFI 80
+#define CPU_HIGH_FREQ_WIFI 80
+
+constexpr uint16_t RGB(uint8_t r, uint8_t g, uint8_t b)
+{
+    //   return ((r / 8) << 11) | ((g / 4) << 5) | (b / 8);
+    return ((r & 0xf8) << 8) | ((g & 0xfc) << 3) | (b >> 3);
+}
+
+constexpr float mapFloat(float x, float in_min, float in_max, float out_min, float out_max)
+{
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+const uint8_t st7701s_init_commands[] = {
+    1, 0x11,
+    LCD_DELAY, 120,
+    6, 0xff, 0x77, 0x01, 0x00, 0x00, 0x10,
+    3, 0xc0, 0x3b, 0x00,
+    3, 0xc1, 0x0d, 0x02,
+    3, 0xc2, 0x21, 0x08,
+    2, 0xcd, 0x08,
+    17, 0xb0, 0x00, 0x11, 0x18, 0x0e, 0x11, 0x06, 0x07, 0x08, 0x07, 0x22, 0x04, 0x12, 0x0f, 0xaa, 0x31, 0x18,
+    17, 0xb1, 0x00, 0x11, 0x19, 0x0e, 0x12, 0x07, 0x08, 0x08, 0x08, 0x22, 0x04, 0x11, 0x11, 0xa9, 0x32, 0x18,
+    6, 0xff, 0x77, 0x01, 0x00, 0x00, 0x11,
+    2, 0xb0, 0x60,
+    2, 0xb1, 0x30,
+    2, 0xb2, 0x87,
+    2, 0xb3, 0x80,
+    2, 0xb5, 0x49,
+    2, 0xb7, 0x85,
+    2, 0xb8, 0x21,
+    2, 0xc1, 0x78,
+    2, 0xc2, 0x78,
+    LCD_DELAY, 20,
+    4, 0xe0, 0x00, 0x1b, 0x02,
+    12, 0xe1, 0x08, 0xa0, 0x00, 0x00, 0x07, 0xa0, 0x00, 0x00, 0x00, 0x44, 0x44,
+    13, 0xe2, 0x11, 0x11, 0x44, 0x44, 0xed, 0xa0, 0x00, 0x00, 0xec, 0xa0, 0x00, 0x00,
+    5, 0xe3, 0x00, 0x00, 0x11, 0x11,
+    3, 0xe4, 0x44, 0x44,
+    17, 0xe5, 0x0a, 0xe9, 0xd8, 0xa0, 0x0c, 0xeb, 0xd8, 0xa0, 0x0e, 0xed, 0xd8, 0xa0, 0x10, 0xef, 0xd8, 0xa0,
+    5, 0xe6, 0x00, 0x00, 0x11, 0x11,
+    3, 0xe7, 0x44, 0x44,
+    17, 0xe8, 0x09, 0xe8, 0xd8, 0xa0, 0x0b, 0xea, 0xd8, 0xa0, 0x0d, 0xec, 0xd8, 0xa0, 0x0f, 0xee, 0xd8, 0xa0,
+    8, 0xeb, 0x02, 0x00, 0xe4, 0xe4, 0x88, 0x00, 0x40,
+    3, 0xec, 0x3c, 0x00,
+    17, 0xed, 0xab, 0x89, 0x76, 0x54, 0x02, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x20, 0x45, 0x67, 0x98, 0xba,
+    6, 0xff, 0x77, 0x01, 0x00, 0x00, 0x00,
+    2, 0x36, 0x00,
+    2, 0x3a, 0x66,
+    1, 0x21, // sleep out
+    LCD_DELAY, 120,
+    LCD_DELAY, 120,
+    1, 0x29, // display on
+    LCD_DELAY, 120,
+    0};
+
+enum MUX_STATE
+{
+    MUX_OFF = 0,
+    MUX_I2S = 1,
+    MUX_SD = 2,
+};
+
+enum CPU_SPEED
+{
+    CPU_CHANGE_LOW = 0,
+    CPU_CHANGE_HIGH = 1,
+};
+
+class SQUiXL
+{
+public:
+    // Screen Functions
+    void init();
+    void screen_init_spi_bitbanged(const uint8_t *data);
+
+    void set_backlight_level(uint16_t pwm_level);
+
+    // IOMUX I2S & SD functions
+    bool mux_switch_to(MUX_STATE new_state);
+    void mux_toggle();
+    bool mux_check_state(MUX_STATE new_state);
+
+    bool vbus_present();
+    bool vbus_changed();
+    void set_cpu_frequency(uint32_t freq, CPU_SPEED speed);
+
+    void log_heap(String title)
+    {
+        Serial.printf("\nHeap Log: %s\nHeap Size: %u of %u\n", title, ESP.getFreeHeap(), ESP.getHeapSize());
+        Serial.printf("Min Heap Size: %u, Max Alloc Heap Size: %u, ", ESP.getMinFreeHeap(), ESP.getMaxAllocHeap());
+        Serial.printf("PSRAM Size: %u\n\n", ESP.getFreePsram());
+    }
+
+private:
+    bool _mux_initialised = false;
+    MUX_STATE _current_mux_state = MUX_STATE::MUX_OFF;
+    unsigned long next_mux_switch = 0;
+
+    bool is_5V_detected = false;
+};
+
+extern SQUiXL squixl;
