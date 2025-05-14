@@ -97,8 +97,8 @@ struct Config_widget_battery
  */
 struct Config_widget_open_weather
 {
-		int poll_frequency = 30;							 // Open Weather poll interval - 30mins.
-		String api_key = "7916a489b63df49a865a0ab436f6171a"; // API key for Open Weather
+		int poll_frequency = 30; // Open Weather poll interval - 30mins.
+		String api_key = "";	 // API key for Open Weather
 		bool enabled = true;
 		bool units_metric = true;
 

@@ -3,7 +3,6 @@
 #include "ui/icons/images/ui_icons.h"
 #include "ui/ui_screen.h"
 
-// #include "ui/icons/icon_button_system.h"
 #include "ui/widgets/widget_openweather.h"
 #include "ui/widgets/widget_jokes.h"
 #include "ui/widgets/widget_time.h"
@@ -15,7 +14,6 @@
 #include "ui/controls/ui_control_toggle.h"
 #include "ui/controls/ui_control_slider.h"
 #include "ui/controls/ui_control_textbox.h"
-#include "ui/controls/ui_control_group.h"
 
 #include "mqtt/mqtt.h"
 #include "utils/littlefs_cli.h"
@@ -39,13 +37,11 @@ ui_screen screen_settings;
 ui_screen screen_wifi_manager;
 
 // Settings
-// ui_control_button button_hello;
 ui_control_toggle toggle_time_mode;
 ui_control_toggle toggle_date_mode;
 ui_control_toggle toggle_OTA_updates;
 
 // Open Weather
-// ui_control_group ow_group;
 ui_control_toggle toggle_ow_enable;
 ui_control_slider slider_ow_refresh;
 ui_control_textbox text_ow_api_key;
@@ -97,7 +93,7 @@ void setup()
 
 	haptics.init();
 
-	// We omnly show the logo on a power cycle, not wake from sleep
+	// We only show the logo on a power cycle, not wake from sleep
 	if (!was_asleep)
 	{
 		ioex.write(BL_EN, HIGH);
@@ -107,8 +103,6 @@ void setup()
 
 	rtc.init();
 	battery.init();
-
-	// Serial.printf(">>> Was sleeping? %d\n", was_asleep);
 
 	if (was_asleep)
 	{
@@ -135,9 +129,11 @@ void setup()
 	next_background_swap = millis();
 	every_second = millis();
 
+	// This is a bit awkward - we need to see if the user has no wifi credentials,
+	// or if they havn't set their country code, or f teh RTC is state.
 	if (rtc.requiresNTP || !settings.has_wifi_creds() || !settings.has_country_set())
 	{
-		// TODO: We really need to make this more robust, with retried, and proper error handling.
+		// No wifi credentials yet, so start the wifi manager
 		if (!settings.has_wifi_creds())
 		{
 			// Don't attempt to start the webserver
@@ -151,24 +147,18 @@ void setup()
 		}
 		else if (!settings.has_country_set())
 		{
-			// We want to hold wifi on for this as it's multiple requests and we dont want to have to connect/disconnect for each
-			// We also want to show a spinning/loading icon - looks ugly right now..
-			wifi_controller.wifi_blocks_display = true;
-			// settings.config.first_time = false;
-
+			// The user has wifi credentials, but no country or UTC has been set yet.
 			// Grab our public IP address, and then get out UTC offset and country and suburb.
 			wifi_controller.add_to_queue("http://api.ipify.org", [](bool success, const String &response) { squixl.get_public_ip(success, response); });
 		}
 		else if (rtc.requiresNTP)
 		{
+			// We have wifi credentials and country/UTC details, so set the time because it's stale.
 			rtc.set_time_from_NTP(settings.config.utc_offset);
-			// settings.config.first_time = false;
 		}
 	}
 
 	Serial.printf("\n>>> Setup done in %0.2f ms\n\n", (millis() - timer));
-
-	// Serial.printf("\n>>> Start webserver? %d rtc.requiresNTP ? %d, settings.has_wifi_creds() ? %d, settings.has_country_set() ? %d\n\n", start_webserver, rtc.requiresNTP, settings.has_wifi_creds(), settings.has_country_set());
 
 	// Setup delayed timer for webserver starting, to alloqw other web traffic to complete first
 	delay_webserver_start = millis();
@@ -180,13 +170,12 @@ void loop()
 	if (squixl.switching_screens)
 		return;
 
-	// if (digitalRead(0) == LOW)
-	// 	squixl.go_to_sleep();
-
 	// Seems we always need audio - so long as the SD card is not enabled
 	if (squixl.mux_check_state(MUX_STATE::MUX_I2S))
 		audio.update();
 
+	// UI is build here, not in Setup() as setup is blocking and wont allow loop() to run until it's finished.
+	// We need the logo animation and haptics/audio to be able to play which requires loop()
 	if (!ui_initialised)
 	{
 		unsigned long timer = millis();
@@ -316,7 +305,6 @@ void loop()
 	if (squixl.current_screen() != nullptr && squixl.current_screen()->should_refresh())
 	{
 		squixl.current_screen()->refresh();
-		// Serial.printf("IO0 is %d\n", digitalRead(0));
 	}
 
 	if (animation_manager.active_animations() > 0)
@@ -343,6 +331,7 @@ void loop()
 	// Only processes every 1 second inside it's loop
 	wifi_controller.loop();
 
+	// This is used if you sattempt to setup your wifi credentials from the first boot screen or if you setup credentials while you are doing other things in SQUiXL.
 	if (wifiSetup.running())
 	{
 		if (settings.config.first_time)

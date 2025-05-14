@@ -124,18 +124,6 @@ uint16_t Settings::webHexToColor565(const char *hex)
  */
 bool Settings::has_wifi_creds(void)
 {
-	// temp hack to have WiFi credentials without needing wifimanager
-	// if (config.wifi_options.size() == 0)
-	// {
-	// 	wifi_station um;
-	// 	um.ssid = "UM";
-	// 	um.pass = "orlish!ntaro";
-	// 	um.channel = 0;
-
-	// 	config.wifi_options.push_back(um);
-	// 	return true;
-	// }
-
 	return config.wifi_options.size() > 0 && !config.wifi_options[0].ssid.isEmpty() && !config.wifi_options[0].pass.isEmpty();
 }
 
