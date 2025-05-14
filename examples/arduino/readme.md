@@ -2,15 +2,17 @@
 You found the SQUiXL examples for Arduino. Though the SQUiXL board definition for Arduino IDE has been merged into the master branch, there has been no new release of the Arduino ESP32 Core yet that includes it, so for now, to use your SQUiXL in the Arduino IDE you will need to set your board up with the settings you see in the screenshot below.
 
 Key values to be set are:
-**Board:** ESP32S3 Dev Module
-**USB CDC On Boot:** Enabled
-**Flash Size:** 16MB
-**Partition Scheme:** 16MB Flash (3MB App)
-**PSRAM:** OPI PSRAM
-**Upload Mode:** JUART0 / Hardware CDC
-**USB Mode:** Hardware CDC and JTAG
 
-<img src="https://squixl.io/images/Temporary_Arduino_IDE_Board_Settings.jpg"/>
+- **Board:** ESP32S3 Dev Module
+- **USB CDC On Boot:** Enabled
+- **Flash Size:** 16MB
+- **Partition Scheme:** 16MB Flash (3MB App)
+- **PSRAM:** OPI PSRAM
+- **Upload Mode:** JUART0 / Hardware CDC
+- **USB Mode:** Hardware CDC and JTAG
+
+
+<img src="https://squixl.io/images/Temporary_Arduino_IDE_Board_Settings.jpg" style="padding:20px;"/>
 
 Once the new `arduino ESP32 Core` release is out, assuming no compiler issues, you will be able to just select `UM SQUIXL` from the boards list.
 
