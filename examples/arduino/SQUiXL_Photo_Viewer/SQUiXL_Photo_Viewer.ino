@@ -29,6 +29,9 @@ uint32_t time_between_image_swap = 20;
 
 bool has_sdcard = false;
 
+// Set the maximum amount of images to add to the list
+uint8_t max_images = 20;
+
 // Function to detect if the file is a JPG or not.
 bool is_jpeg_filename(const char *name)
 {
@@ -82,7 +85,7 @@ void scan_images_on_SD()
     }
 
     File file = root.openNextFile();
-    while (file)
+    while (file && image_names.size() < max_images)
     {
         if (!file.isDirectory())
         {

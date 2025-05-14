@@ -6,101 +6,8 @@
 #include "ui/ui_keyboard.h"
 #include "PNGDisplay.inl"
 
-// #include "JPEGDisplay.inl"
-// #include "PNGDisplay.inl"
-
 TaskHandle_t anim_task_handler;
 
-// PNG png;
-// uint8_t *pBits, *pOut, *pSrc;
-// #define MAX_OUT_SIZE 65536
-// uint8_t ucTemp[480 * 3]; // will hold a line of converted RGB565->RGB888 pixels
-
-// // Convert a line of RGB565 pixels into RGB888
-// void ConvertLine(uint8_t *pSrc, uint8_t *pDest, int iWidth)
-// {
-// 	int i;
-// 	uint8_t r, g, b;
-// 	uint16_t *pu16, u16;
-
-// 	pu16 = (uint16_t *)pSrc;
-// 	for (i = 0; i < iWidth; i++)
-// 	{
-// 		u16 = *pu16++;
-// 		r = ((u16 & 0xf800) >> 8) | (u16 >> 13);
-// 		g = ((u16 & 0x7e0) >> 3) | ((u16 >> 9) & 3);
-// 		b = ((u16 & 0x1f) << 3) | ((u16 & 0x1c) >> 2);
-// 		pDest[0] = r;
-// 		pDest[1] = g;
-// 		pDest[2] = b;
-// 		pDest += 3;
-// 	}
-// } /* ConvertLine() */
-
-// void save_png()
-// {
-// 	int y, rc, iDataSize;
-// 	long l;
-// 	int iPitch;
-
-// 	pOut = (uint8_t *)malloc(MAX_OUT_SIZE);
-// 	if (!pOut)
-// 	{
-// 		Serial.println("Not enough RAM!");
-// 		return;
-// 	}
-// 	// uint16_t *image = squixl.lcd.getBuffer();
-// 	pBits = (uint8_t *)squixl.lcd.getBuffer(); // get pointer to start of image data
-// 	pBits += pBits[10] + (pBits[11] * 256); // start of pixels
-// 	iPitch = 480 * 2;						// bytes per line
-// 	// if (image[25] == 0)
-// 	// { // height is positive so bitmap is "bottom-up"
-// 	// 	pBits += 239 * iPitch;
-// 	// 	iPitch = -iPitch;
-// 	// }
-// 	rc = png.open(pOut, MAX_OUT_SIZE);
-// 	if (rc == PNG_SUCCESS)
-// 	{
-// 		Serial.println("Successfully opened PNG encoder");
-// 		l = millis();
-// 		rc = png.encodeBegin(480, 480, PNG_PIXEL_TRUECOLOR, 24, NULL, 9);
-// 		if (rc == PNG_SUCCESS)
-// 		{
-// 			pSrc = pBits;
-// 			for (y = 0; y < 240 && rc == PNG_SUCCESS; y++)
-// 			{
-// 				// convert a line of image from RGB565 to RGB888
-// 				ConvertLine(pSrc, ucTemp, 240);
-// 				rc = png.addLine(ucTemp);
-// 				pSrc += iPitch;
-// 			} // for y
-// 		}
-// 		else
-// 		{
-// 			Serial.printf("Error starting PNG encoding = %d\n", png.getLastError());
-// 		}
-// 		iDataSize = png.close();
-// 		l = millis() - l;
-// 		Serial.printf("480x480 PNG image compressed in %d ms to %d bytes\n", (int)l, iDataSize);
-
-// 		File file = LittleFS.open("screenshot.png", FILE_WRITE);
-// 		if (!file)
-// 		{
-// 			Serial.println("Failed to write to screenshot file");
-// 			// log_to_nvs("save_status", "failed to open for write");
-// 			return;
-// 		}
-
-// 		file.write(pOut, iDataSize);
-// 		// log_to_nvs("save_status", "data written");
-
-// 		file.close();
-// 	}
-// 	else
-// 	{ // if not opened successfully
-// 		Serial.printf("Error opening memory PNG = %d\n", png.getLastError());
-// 	}
-// } /* setup() */
 void SQUiXL::start_animation_task()
 {
 	// Start the animation task on the ESP32 using FreeRTOS.
@@ -134,11 +41,11 @@ void SQUiXL::display_logo(bool show)
 			squixl.lcd.drawSprite(100, 200, &logo_black, 1.0, -1);
 			delay(25);
 		}
-		// #ifdef AUDIO_AVAILABLE
-		// 		// audio.play_wav("squixl");
-		//         audio.play_wav("hello");
-		// 		audio.wait_for_finish();
-		// #endif
+#ifdef AUDIO_AVAILABLE
+		audio.play_wav("hello");
+		audio.wait_for_finish();
+#endif
+
 		delay(500);
 		for (uint8_t alpha = 0; alpha < 32; alpha++)
 		{
@@ -171,7 +78,6 @@ void SQUiXL::display_first_boot(bool show)
 {
 	if (show)
 	{
-
 		logo_squixl.createVirtual(280, 60, NULL, true);
 		squixl.loadPNG_into(&logo_squixl, 0, 0, squixl_logo_blue, sizeof(squixl_logo_blue));
 
@@ -232,7 +138,6 @@ void SQUiXL::set_backlight_level(float pwm_level_percent)
 	uint16_t pwm_level = 4000 - (int)((pwm_level_percent / 100.0f) * 4000.0);
 	ledcWrite(BL_PWM, pwm_level);
 	current_backlight_pwm = pwm_level_percent;
-	// Serial.printf("\n>> backlight PWM: %d from %f\n\n", pwm_level, pwm_level_percent);
 }
 
 void SQUiXL::animate_backlight(float from, float to, unsigned long duration)
@@ -245,8 +150,12 @@ void SQUiXL::process_backlight_dimmer()
 	if (millis() - backlight_dimmer_timer > backlight_dimmer_time_step)
 	{
 		backlight_dimmer_timer = millis();
+
 		if (is_5V_detected)
+		{
+			// Never dimm the backlight or go to sleep when powered from 5V
 			return;
+		}
 
 		if (current_backlight_pwm == 0)
 		{
@@ -273,6 +182,7 @@ void SQUiXL::set_wallpaper_index(uint8_t index)
 	settings.config.current_background = index;
 }
 
+// helper function that loads a PNG header file into a sprite
 void SQUiXL::loadPNG_into(BB_SPI_LCD *sprite, int start_x, int start_y, const void *image_data, int image_data_size)
 {
 	int w, h, bpp;
@@ -307,19 +217,17 @@ bool SQUiXL::vbus_changed()
 	return detected;
 }
 
+// Used to get local public IP address for country/location lookup for UTC and OW
 void SQUiXL::get_public_ip(bool success, const String &response)
 {
-	Serial.println("Callback executed. Success: " + String(success ? "TRUE" : "FALSE") + ", Response: " + String(response));
+	// Serial.println("Callback executed. Success: " + String(success ? "TRUE" : "FALSE") + ", Response: " + String(response));
 	std::string url = std::string("https://ipapi.co/") + response.c_str() + std::string("/json/");
 	wifi_controller.add_to_queue(url, [](bool success, const String &response) { squixl.get_and_update_utc_settings(success, response); });
 }
 
 void SQUiXL::get_and_update_utc_settings(bool success, const String &response)
 {
-	Serial.println("Callback executed. Success: " + String(success ? "TRUE" : "FALSE") + ", Response: " + String(response));
-
-	// // don't hold wifi on anymore
-	// settings.config.wifi_start = false;
+	// Serial.println("Callback executed. Success: " + String(success ? "TRUE" : "FALSE") + ", Response: " + String(response));
 
 	if (success && !response.isEmpty())
 	{
@@ -345,7 +253,6 @@ void SQUiXL::get_and_update_utc_settings(bool success, const String &response)
 		Serial.printf("utc fixed: %d\n", settings.config.utc_offset);
 
 		settings.save(true);
-		// squixl.log_system_message("UTC set " + String(settings.config.utc_offset));
 
 		bool obtained = false;
 		uint8_t retries = 3;
@@ -357,26 +264,19 @@ void SQUiXL::get_and_update_utc_settings(bool success, const String &response)
 		if (!obtained)
 		{
 			Serial.println("Failed to set NTP time");
-			// squixl.log_system_message("Failed NTP time");
 		}
 		else
 		{
 			Serial.println("Set the NTP time");
-			// rtc.requiresNTP = false;
 			rtc.hasTime = true;
-			// squixl.log_system_message("NTP time set");
 		}
 	}
 	else
 	{
 		Serial.println("Failed to obtain UTC details");
-		// squixl.log_system_message("Failed UTC details");
 	}
 
 	wifi_controller.wifi_blocks_display = false;
-
-	// if (!settings.config.wifi_start)
-	// 	wifi_controller.disconnect(false);
 }
 
 bool SQUiXL::process_touch_full()
@@ -591,12 +491,7 @@ bool SQUiXL::process_touch_full()
 				// int16_t last_dir_x = pts[0][0] - moved_x;
 				// int16_t last_dir_y = pts[0][1] - moved_y;
 
-				// currently_selected->process_touch(touch_event_t(pts[0][0], pts[0][1], TOUCH_DRAG_END));
-				// if (currently_selected->drag_end(deltaX, deltaY, distance, pts[0][0], pts[0][1]))
-				// {
-				// 	return true;
-				// 	;
-				// }
+				// currently_selected->process_touch(touch_event_t(moved_x, moved_y, TOUCH_DRAG_END));
 			}
 		}
 	}
@@ -693,10 +588,6 @@ void SQUiXL::go_to_sleep()
 	wifi_controller.kill_controller_task();
 
 	vTaskDelete(anim_task_handler);
-
-	// rtc_mem_watch_clock_screen = settings.config.clock_face_index;
-	// rtc_mem_watch_flipped = settings.config.flipped;
-	// rtc_mem_watch_handed = settings.config.left_handed;
 
 	battery.set_hibernate(true);
 
