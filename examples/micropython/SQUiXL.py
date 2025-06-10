@@ -269,3 +269,21 @@ def get_state_of_charge():
 def get_vbus_present():
     """Detect if VBUS (5V) power source is present"""
     return ioex.read(VBUS_SENSE) == 1
+
+# --- Context Manager Support ---
+import sys
+
+def screen_deinit():
+    global lcd
+    if lcd is not None:
+        try:
+            lcd.deinit()
+        except AttributeError:
+            pass
+        lcd = None
+
+def __enter__():
+    return sys.modules[__name__]
+
+def __exit__(exc_type, exc_value, traceback):
+    screen_deinit()

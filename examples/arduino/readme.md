@@ -16,6 +16,9 @@ Key values to be set are:
 
 Once the new `arduino ESP32 Core` release is out, assuming no compiler issues, you will be able to just select `UM SQUIXL` from the boards list.
 
+# BB_SPI_LCD library
+Please uninstall any version of BB_SPI_LCD you have installed via the library manager and manually install [my fork from GitHub](https://github.com/unexpectedmaker/bb_spi_lcd)
+
 
 ## SQUiXL Audio
 This example show you how to switch the IOMUX to use the I2S audio system to play a pre-encoded WAV file on boot and to play different tones based on where you touch the scree.
