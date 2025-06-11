@@ -2,6 +2,8 @@
     SQUiXL Audio Example
     Copyright (c) 2025 Unexpected Maker
     https://squixl.io
+
+    Requires: ESP8266Audio library to be installed
 */
 
 #include "src/squixl_lite.h"

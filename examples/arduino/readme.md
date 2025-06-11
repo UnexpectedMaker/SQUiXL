@@ -1,6 +1,8 @@
 # SQUiXL Examples for Arduino
 You found the SQUiXL examples for Arduino. Though the SQUiXL board definition for Arduino IDE has been merged into the master branch, there has been no new release of the Arduino ESP32 Core yet that includes it, so for now, to use your SQUiXL in the Arduino IDE you will need to set your board up with the settings you see in the screenshot below.
 
+**Note:** All SQUiXL Arduino examples require version 3.1.3 or later of the Ardiuno ESP32 Core. The examples won't compile in older v2 cores. 
+
 Key values to be set are:
 
 - **Board:** ESP32S3 Dev Module
@@ -24,6 +26,8 @@ Please uninstall any version of BB_SPI_LCD you have installed via the library ma
 This example show you how to switch the IOMUX to use the I2S audio system to play a pre-encoded WAV file on boot and to play different tones based on where you touch the scree.
 
 It also shows you how to write text to the screen as well as drawling lines and circles with random colors.
+
+**Note:** The Audio Example requires the ESP8266Audio library to be installed.
 
 ## SQUiXL Photo Viewer
 This example shows you how to switch the IOMUX to the uSD card slot to load JPG files from the card and show them on the screen, like a photo viewer.
