@@ -29,5 +29,5 @@ with squixl as squixl:
     while True:
         n, points = squixl.touch.read_points()
         for i in range(0, n):
-            print(f"id {points[i][3]} x {points[i][0]} y {points[i][1]} size {points[i][2]}")
+            print(f"id:{points[i][3]} x {points[i][0]} y {points[i][1]} size {points[i][2]}")
         sleep_ms(100)

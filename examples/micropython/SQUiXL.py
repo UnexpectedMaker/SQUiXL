@@ -32,6 +32,14 @@ HAPTICS_EN	= 10
 VBUS_SENSE	= 11
 SD_DETECT	= 15
 
+#IO MUX
+IOMUX_OFF = 0
+IOMUX_SD = 1
+IOMUX_I2S = 2
+
+current_iomux_state = IOMUX_OFF
+
+
 # Data pins in R0–R4, G0–G5, B0–B4 order
 RGB_IO = [
     # B0–B4
@@ -122,7 +130,7 @@ ioex.pin_mode(MUX_SEL, OUTPUT, HIGH)
 ioex.pin_mode(HAPTICS_EN, OUTPUT, HIGH)
 
 # Initialise the GT911 touch IC 
-touch = GT911(i2c, irq_pin=3, reset_pin=5, ioex=ioex)
+touch = GT911(i2c, irq_pin=3, reset_pin=5, ioex=ioex, touch_points=5)
 
 # Initialise the DRV2605 haptic engine
 drv = DRV2605(i2c)
@@ -223,33 +231,33 @@ def create_display():
         fb_in_psram		  = True,
         bounce_buffer_size_px = 10 * 480,
     )
-    # lcd = RGB(
-    #     480, 480, RGB_IO,
-    #     hsync             = HSYNC,
-    #     vsync             = VSYNC,
-    #     de                = DE,
-    #     pclk              = PCLK,
-    #     freq              = 6_000_000,  # 6 MHz
-    #     num_fbs           = 1,           # double-buffering
-    #     psram_trans_align = 64,
-    #     sram_trans_align  = 8,
-    #     bits_per_pixel    = 16,
-    #     disp_gpio_num     = -1,          # no reset pin
-    #     hsync_idle_low    = False,
-    #     vsync_idle_low    = False,
-    #     hsync_back_porch  = 10,
-    #     hsync_front_porch = 50,
-    #     hsync_pulse_width = 8,
-    #     vsync_back_porch  = 8,
-    #     vsync_front_porch = 8,
-    #     vsync_pulse_width = 3,
-    #     on_demand		  = False,
-    #     fb_in_psram		  = True,
-    #     bounce_buffer_size_px = 10 * 480,
-    # )
 
     # Return the display buffer
     return lcd.get_buffer()
+
+def set_iomux(state=IOMUX_OFF):
+    """Set the state of the IOMUX - for I2S Amp or SD Card or OFF"""
+    global current_iomux_state
+    
+    if current_iomux_state == state:
+        return
+    
+    # IO MUX - Set default to I2S - LOW is SD
+
+    if state == IOMUX_OFF:
+        ioex.pin_mode(MUX_EN, OUTPUT, HIGH)
+        print("SQUiXL IOMUX is OFF")
+    elif state == IOMUX_SD:
+        ioex.pin_mode(MUX_EN, OUTPUT, LOW)
+        ioex.pin_mode(MUX_SEL, OUTPUT, LOW)
+        print("SQUiXL IOMUX is uSD")
+    elif state == IOMUX_I2S:
+        ioex.pin_mode(MUX_EN, OUTPUT, LOW)
+        ioex.pin_mode(MUX_SEL, OUTPUT, HIGH)
+        print("SQUiXL IOMUX is I2S")
+
+    current_iomux_state = state
+
         
 # Helper functions
 def get_bat_voltage():
