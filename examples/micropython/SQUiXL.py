@@ -46,7 +46,6 @@ IOMUX_D4 = 46
 # ======= AUDIO CONFIGURATION =======
 I2S_ID = 0
 I2S_BUFFER_LENGTH_IN_BYTES = 2000
-TONE_FREQUENCY_IN_HZ = 440
 SAMPLE_SIZE_IN_BITS = 16
 FORMAT = I2S.MONO  # only MONO supported in this example
 SAMPLE_RATE_IN_HZ = 22_050
@@ -292,25 +291,6 @@ def set_iomux(state=IOMUX_OFF):
         print("SQUiXL IOMUX is I2S")
 
     current_iomux_state = state
-
-def make_tone(rate, bits, frequency):
-    # create a buffer containing the pure tone samples
-    samples_per_cycle = rate // frequency
-    sample_size_in_bytes = bits // 8
-    samples = bytearray(samples_per_cycle * sample_size_in_bytes)
-    volume_reduction_factor = 16
-    range = pow(2, bits) // 2 // volume_reduction_factor
-    
-    if bits == 16:
-        format = "<h"
-    else:  # assume 32 bits
-        format = "<l"
-    
-    for i in range(samples_per_cycle):
-        sample = range + int((range - 1) * math.sin(2 * math.pi * i / samples_per_cycle))
-        struct.pack_into(format, samples, i * sample_size_in_bytes, sample)
-        
-    return samples
         
 # Helper functions
 def get_bat_voltage():
