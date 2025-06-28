@@ -1,17 +1,17 @@
 # SQUiXL Helper Library
-# MIT license; Copyright (c) 2024 Seon Rozenblum - Unexpected Maker
+# MIT license; Copyright (c) 2025 Seon Rozenblum - Unexpected Maker
 #
 # Project home:
 #   https://squixl.io
 
 # Import required libraries
 from micropython import const
-from machine import Pin, I2C, PWM, RGB
+from machine import Pin, I2C, PWM, RGB, I2S
 from max17048 import MAX17048
 from lca9555 import LCA9555, OUTPUT, HIGH, LOW, INPUT
 from drv2605 import DRV2605, Effect, Pause, MODE_INTTRIG
 from gt911 import GT911
-import time
+import math, time, struct
 
 
 # S3 IO
@@ -36,6 +36,21 @@ SD_DETECT	= 15
 IOMUX_OFF = 0
 IOMUX_SD = 1
 IOMUX_I2S = 2
+
+IOMUX_D1 = 41
+IOMUX_D2 = 42
+IOMUX_D3 = 45
+IOMUX_D4 = 46
+
+
+# ======= AUDIO CONFIGURATION =======
+I2S_ID = 0
+I2S_BUFFER_LENGTH_IN_BYTES = 2000
+TONE_FREQUENCY_IN_HZ = 440
+SAMPLE_SIZE_IN_BITS = 16
+FORMAT = I2S.MONO  # only MONO supported in this example
+SAMPLE_RATE_IN_HZ = 22_050
+# ======= AUDIO CONFIGURATION =======
 
 current_iomux_state = IOMUX_OFF
 
@@ -98,6 +113,7 @@ st7701s_init_commands = [
 ]
 
 lcd = None
+audio_out = None
 
 # back_light = PWM(BL_PWM, freq=6000, duty_u16=8192)
 # back_light.duty_u16(32768)
@@ -238,26 +254,63 @@ def create_display():
 def set_iomux(state=IOMUX_OFF):
     """Set the state of the IOMUX - for I2S Amp or SD Card or OFF"""
     global current_iomux_state
+    global audio_out
     
     if current_iomux_state == state:
         return
     
+    if current_iomux_state == IOMUX_I2S:
+        audio_out.deinit()
+    
     # IO MUX - Set default to I2S - LOW is SD
 
     if state == IOMUX_OFF:
-        ioex.pin_mode(MUX_EN, OUTPUT, HIGH)
+        ioex.write(MUX_EN, HIGH)
         print("SQUiXL IOMUX is OFF")
     elif state == IOMUX_SD:
-        ioex.pin_mode(MUX_EN, OUTPUT, LOW)
-        ioex.pin_mode(MUX_SEL, OUTPUT, LOW)
+        ioex.write(MUX_EN, LOW)
+        ioex.write(MUX_SEL, LOW)
         print("SQUiXL IOMUX is uSD")
     elif state == IOMUX_I2S:
-        ioex.pin_mode(MUX_EN, OUTPUT, LOW)
-        ioex.pin_mode(MUX_SEL, OUTPUT, HIGH)
+        ioex.write(MUX_EN, LOW)
+        ioex.write(MUX_SEL, HIGH)
+
+        sd_mode = Pin(IOMUX_D1, Pin.OUT)
+        sd_mode.value(1)
+
+        audio_out = I2S(
+            1,
+            sck=Pin(IOMUX_D4),
+            ws=Pin(IOMUX_D2),
+            sd=Pin(IOMUX_D3),
+            mode=I2S.TX,
+            bits=SAMPLE_SIZE_IN_BITS,
+            format=FORMAT,
+            rate=SAMPLE_RATE_IN_HZ,
+            ibuf=I2S_BUFFER_LENGTH_IN_BYTES,
+        )
         print("SQUiXL IOMUX is I2S")
 
     current_iomux_state = state
 
+def make_tone(rate, bits, frequency):
+    # create a buffer containing the pure tone samples
+    samples_per_cycle = rate // frequency
+    sample_size_in_bytes = bits // 8
+    samples = bytearray(samples_per_cycle * sample_size_in_bytes)
+    volume_reduction_factor = 16
+    range = pow(2, bits) // 2 // volume_reduction_factor
+    
+    if bits == 16:
+        format = "<h"
+    else:  # assume 32 bits
+        format = "<l"
+    
+    for i in range(samples_per_cycle):
+        sample = range + int((range - 1) * math.sin(2 * math.pi * i / samples_per_cycle))
+        struct.pack_into(format, samples, i * sample_size_in_bytes, sample)
+        
+    return samples
         
 # Helper functions
 def get_bat_voltage():
