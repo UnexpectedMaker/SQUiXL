@@ -19,4 +19,14 @@ SQUiXL.set_iomux(SQUiXL.IOMUX_SD)
 SQUiXL.set_iomux(SQUiXL.IOMUX_I2S)
 ```
 
-Currently, no `init` or `deinit` of each peripheral will happen when you switch the IOMUX using this function (like it does in the shipping C+ firmware) so you'll need to manually deinit the I2S Amp if it's currently the active output, before switching the MUX off or to the SD card output. The same applies to the SPI connection to the uSD card, if switching away from it.  
+Currently, I2S `init` and `deinit` is managed inside the `set_iomux` function, but no uSD card peripheral support has been added yet. Stay tuned for that.
+
+### Basic I2S Audio
+A new `pay_tone.py` example has been added to show how to set and use the I2S peripheral. It's REALLY basic for now, but it's good for showing how to make beeps and boops.
+
+More advanced audio support will follow soon.
+
+### Multi Touch
+New MP firmware has been added that fixes multi touch tracking of up to 5 fingers, and a `multi_touch.py` example has been added to see how this works.
+
+The `multi_touch.py` example will not work without first flashing the 29-06-2025 build of MP for SQUiXL on your device.
