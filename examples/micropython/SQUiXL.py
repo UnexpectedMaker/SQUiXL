@@ -145,7 +145,7 @@ ioex.pin_mode(MUX_SEL, OUTPUT, HIGH)
 ioex.pin_mode(HAPTICS_EN, OUTPUT, HIGH)
 
 # Initialise the GT911 touch IC 
-touch = GT911(i2c, irq_pin=3, reset_pin=5, ioex=ioex, touch_points=5)
+touch = GT911(i2c, irq_pin=3, reset_pin=5, ioex=ioex)
 
 # Initialise the DRV2605 haptic engine
 drv = DRV2605(i2c)
