@@ -160,17 +160,18 @@ with squixl as squixl:
     while not exiting:
         got_new = False
         n, points = squixl.touch.read_points()
-        for i in range(0, n):
-            if last_y != points[i][0] and last_x != points[i][1]:
-                got_new = True
-                print(f"id {points[i][3]} x {points[i][1]} y {points[i][0]} size {points[i][2]}\n\n")
-                last_x = points[i][1]
-                last_y = points[i][0]
+        if n > 0 and last_x != points[0][0] and last_y != points[0][1]:
+            got_new = True
+            # print(f"id {points[i][3]} x {points[i][0]} y {points[i][1]}\n\n")
+            last_x = points[0][0]
+            last_y = points[0][1]
+
+            squixl.touch.clear_points()
         
-        # If we got a new touch position buzz the squixl
+        # If we got a new touch position, send teh touch event to see if we hit a control
         if got_new:
             evt = TouchEvent(TOUCH_TAP, last_x, last_y)
             mgr.process_touch(evt)
-        
+
         sleep_ms(100)
 
