@@ -1,4 +1,4 @@
-# SQUiXL Helper Library
+# SQUiXL Helper Library for MicroPython
 # MIT license; Copyright (c) 2025 Seon Rozenblum - Unexpected Maker
 #
 # Project home:
@@ -11,7 +11,7 @@ from max17048 import MAX17048
 from lca9555 import LCA9555, OUTPUT, HIGH, LOW, INPUT
 from drv2605 import DRV2605, Effect, Pause, MODE_INTTRIG
 from gt911 import GT911
-import math, time, struct
+import time, sys
 
 
 # S3 IO
@@ -42,7 +42,6 @@ IOMUX_D2 = 42
 IOMUX_D3 = 45
 IOMUX_D4 = 46
 
-
 # ======= AUDIO CONFIGURATION =======
 I2S_ID = 0
 I2S_BUFFER_LENGTH_IN_BYTES = 2000
@@ -51,8 +50,8 @@ FORMAT = I2S.MONO  # only MONO supported in this example
 SAMPLE_RATE_IN_HZ = 22_050
 # ======= AUDIO CONFIGURATION =======
 
+# IOMUX default state, which is off
 current_iomux_state = IOMUX_OFF
-
 
 # Data pins in R0–R4, G0–G5, B0–B4 order
 RGB_IO = [
@@ -64,6 +63,7 @@ RGB_IO = [
     8, 7, 6, 5, 4,
 ]
 
+# Macro for the delay value
 LCD_DELAY = 0xFF
 
 # ST7701S init sequence
@@ -111,9 +111,11 @@ st7701s_init_commands = [
     0
 ]
 
+# LCD and AUDIO vars
 lcd = None
 audio_out = None
 
+# BACKLIGHT control - wil be functional soon
 # back_light = PWM(BL_PWM, freq=6000, duty_u16=8192)
 # back_light.duty_u16(32768)
 
@@ -126,6 +128,7 @@ max17048 = MAX17048(i2c)
 # Create instance of tehe LCA9555 IO Expander
 ioex = LCA9555(i2c)
 
+# LCD Reset 
 ioex.pin_mode(LCD_RST, OUTPUT, HIGH)
 
 # Screen backlight EN
@@ -134,10 +137,12 @@ ioex.pin_mode(BL_EN, OUTPUT, HIGH)
 # Screen soft power EN
 ioex.pin_mode(SOFT_PWR, OUTPUT, LOW)
 
+# 5V presense sense IO
 ioex.pin_mode(VBUS_SENSE, INPUT)
 
 # IO MUX - EN is Active LOW, so start it off
 ioex.pin_mode(MUX_EN, OUTPUT, HIGH)
+
 # IO MUX - Set default to I2S - LOW is SD
 ioex.pin_mode(MUX_SEL, OUTPUT, HIGH)
 
@@ -149,10 +154,11 @@ touch = GT911(i2c, irq_pin=3, reset_pin=5, ioex=ioex)
 
 # Initialise the DRV2605 haptic engine
 drv = DRV2605(i2c)
-# Seth the driver to a basic click effect
+
+# Set the driver to a basic click effect
 drv.sequence[0] = Effect(1)
 
-
+# SPI initialisation of the screen is bit banged as the IO is via the IOExpander 
 def screen_init_spi_bitbanged():
     """
     Bit-banged SPI over LCA9555 pins to send init commands to ST7701S display.
@@ -218,7 +224,8 @@ def screen_init_spi_bitbanged():
         # small pause (optional)
         # time.sleep_us(10)
     time.sleep_ms(10)
-    
+
+# Function to create the display
 def create_display():
     global lcd
     
@@ -250,6 +257,7 @@ def create_display():
     # Return the display buffer
     return lcd.get_buffer()
 
+# CHnage teh state of the IOMUX from Off, to I2S or uSD
 def set_iomux(state=IOMUX_OFF):
     """Set the state of the IOMUX - for I2S Amp or SD Card or OFF"""
     global current_iomux_state
@@ -292,28 +300,30 @@ def set_iomux(state=IOMUX_OFF):
 
     current_iomux_state = state
         
-# Helper functions
+# General Helper Functions
+
+# Battery voltage
 def get_bat_voltage():
     """Read the battery voltage from the fuel gauge"""
     voltage = max17048.cell_voltage
     print(f"Bat Voltage: {voltage}V")
     return voltage
 
-
+# Battery charge state
 def get_state_of_charge():
     """Read the battery state of charge from the fuel gauge"""
     soc = max17048.state_of_charge
     print(f"State of Charge: {soc}%")
     return soc
 
-
+# 5V Presense
 def get_vbus_present():
     """Detect if VBUS (5V) power source is present"""
     return ioex.read(VBUS_SENSE) == 1
 
 # --- Context Manager Support ---
-import sys
 
+# Screen DeInit control
 def screen_deinit():
     global lcd
     if lcd is not None:

@@ -1,19 +1,13 @@
 # squixl_ui.py
 import framebuf
 
+# import the CWriter class from Peter Hinch
+# https://github.com/peterhinch/micropython-font-to-py
+from writer import CWriter
+from boolpalette import BoolPalette
+
 # Configuration
 TOUCH_PADDING = 5  # Extra pixels around each control for easier touching
-
-# Helper: Convert 8-bit RGB to 16-bit RGB565
-def rgb_to_565(r, g, b):
-    """Convert 0–255 R,G,B to a 16-bit RGB565 value."""
-
-    u16 = b >> 3
-    u16 |= ((g >> 2) << 5)
-    u16 |= ((r >> 3) << 11)
-    return u16
-
-    # return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
 
 # Touch event types
 TOUCH_TAP        = 0
@@ -27,6 +21,32 @@ TOUCH_DRAG       = 7
 TOUCH_DRAG_END   = 8
 TOUCH_UNKNOWN    = 9
 
+# Helper: Convert 8-bit RGB to 16-bit RGB565
+def rgb_to_565(r, g, b):
+    """Convert 0–255 R,G,B to a 16-bit RGB565 value."""
+    u16 = b >> 3
+    u16 |= ((g >> 2) << 5)
+    u16 |= ((r >> 3) << 11)
+    return u16
+
+# Create a CWrite device using teh same Framebuf buffer that SQUiXL uses
+class WriterDevice(framebuf.FrameBuffer):
+    def __init__(self, buffer):
+        self.width = 480
+        self.height = 480
+        self.buffer = buffer
+        self.mode = framebuf.RGB565
+        self.palette = BoolPalette(self.mode)
+        super().__init__(self.buffer, self.width, self.height, self.mode)
+
+     
+# Function to print text to screen via CWriter device
+def print_text(wbuf, font, text, x, y, fg_colour, bg_colour):
+    CWriter.set_textpos(wbuf, y, x)
+    font.setcolor(fgcolor=fg_colour, bgcolor=bg_colour)
+    font.printstring(text)
+
+# Touch event class for capturing touches
 class TouchEvent:
     """Encapsulates a touch event."""
     def __init__(self, event_type, x, y):
@@ -34,10 +54,11 @@ class TouchEvent:
         self.x = x
         self.y = y
 
+# Base class for all UI items
 class UIControl:
     """Base class for all controls."""
     def __init__(self, x, y, w, h, title="", callback=None,
-                 fg_color=0xFFFF, bg_color=0x0000, text_color=0xFFFF):
+                 fg_color=0xFFFF, bg_color=None, text_color=0xFFFF):
         self.x = x
         self.y = y
         self.w = w
@@ -47,6 +68,7 @@ class UIControl:
         self.fg_color = fg_color
         self.bg_color = bg_color
         self.text_color = text_color
+        self.font = None
         self.manager = None  # Set by UIManager
 
     def draw(self, buf: framebuf.FrameBuffer):
@@ -62,11 +84,27 @@ class UIControl:
     def process_touch(self, evt: TouchEvent):
         """Handle touch event; return True if consumed."""
         return False
+    
+    def set_font(self, new_font):
+        self.font = new_font
+
+    def get_back_color(self):
+        if self.bg_color is not None:
+            return self.bg_color
+        
+        if self.manager and self.manager.current_screen:
+            return self.manager.current_screen.bg_color
+        
+        return 0x0000
 
 class UILabel(UIControl):
     """A simple text label."""
     def draw(self, buf):
-        buf.text(self.title, self.x, self.y, self.text_color)
+        if self.font is not None:
+            print_text(buf, self.font, self.title, self.x, self.y, self.text_color, self.get_back_color())
+        elif self.manager:
+            print_text(buf, self.manager.font, self.title, self.x, self.y, self.text_color, self.get_back_color())
+        # buf.text(self.title, self.x, self.y, self.text_color)
 
     def set_text(self, text):
         if self.manager:
@@ -94,10 +132,19 @@ class UIButton(UIControl):
         textcol = self.bg_color if self.flash else self.text_color
         buf.rect_round(self.x, self.y, self.w, self.h, 10, fill, True)
         buf.rect_round(self.x, self.y, self.w, self.h, 10, border)
-        tw = len(self.title) * 8
-        tx = self.x + (self.w - tw) // 2
-        ty = self.y + (self.h - 8) // 2
-        buf.text(self.title, tx, ty, textcol)
+        
+        if self.font is not None:
+            tw = len(self.title) * self.font.font.max_width()
+            tx = self.x + (self.w - tw) // 2
+            ty = self.y + (self.h - self.font.height) // 2
+            print_text(buf, self.font, self.title, tx, ty, textcol, self.bg_color)
+        elif self.manager:
+            tw = len(self.title) * self.manager.font.font.max_width()
+            tx = self.x + (self.w - tw) // 2
+            ty = self.y + (self.h - self.manager.font.height) // 2
+            print_text(buf, self.manager.font, self.title, tx, ty, textcol, self.bg_color)
+        
+        # buf.text(self.title, tx, ty, textcol)
 
     def process_touch(self, evt: TouchEvent):
         # print(f"UIButton '{self.title}' touch at ({evt.x},{evt.y}) type={evt.type}")
@@ -181,7 +228,12 @@ class UICheckBox(UIControl):
                           self.check_color, True)
         # Center label vertically
         ly = self.y + (self.h - 8) // 2
-        buf.text(self.title, self.x + self.w + 6, ly, self.text_color)
+
+        if self.font is not None:
+            print_text(buf, self.font, self.title, self.x + self.w + 6, ly, self.text_color, self.bg_color)
+        elif self.manager:
+            print_text(buf, self.manager.font, self.title, self.x + self.w + 6, ly, self.text_color, self.bg_color)
+        # buf.text(self.title, self.x + self.w + 6, ly, self.text_color)
 
     def process_touch(self, evt: TouchEvent):
         # print(f"UICheckBox '{self.title}' touch at ({evt.x},{evt.y}) type={evt.type}")
@@ -236,10 +288,11 @@ class UIScreen:
 
 class UIManager:
     """Manages multiple UIScreens and dispatches touch events."""
-    def __init__(self, buf: framebuf.FrameBuffer):
+    def __init__(self, buf: framebuf.FrameBuffer, def_font):
         self.buf = buf
         self.screens = {}
         self.current_screen = None
+        self.font = def_font
 
     def add_screen(self, screen: UIScreen):
         screen.manager = self
@@ -273,3 +326,4 @@ class UIManager:
             if ctrl.process_touch(evt):
                 return True
         return False
+    

@@ -1,7 +1,23 @@
 import framebuf, gc
-import SQUiXL as squixl
+import squixl
 from time import sleep_ms
 import math
+from writer import CWriter
+
+from colors import *
+
+# RobotoMono Light
+# from fonts import robotomono_light_12
+# from fonts import robotomono_light_14
+from fonts import robotomono_light_16
+# from fonts import robotomono_light_18
+# from fonts import robotomono_light_20
+
+# RobotoMono Bold
+from fonts import robotomono_bold_18
+# from fonts import robotomono_bold_20
+# from fonts import robotomono_bold_22
+# from fonts import robotomono_bold_24
 
 from squixl_ui import (
     UIManager,
@@ -15,7 +31,8 @@ from squixl_ui import (
     TOUCH_TAP,
     TOUCH_DRAG,
     TOUCH_DRAG_END,
-    rgb_to_565
+    rgb_to_565,
+    WriterDevice
 )
 
 # The SQUiXL library now supports context managers, so we now intitialise the library using a with block, which will automatically deinit() the LCD peripheral when you exit back to the REPL.
@@ -26,16 +43,31 @@ with squixl as squixl:
 
     exiting = False
 
+    # Create the display and get the screen buffer
     buf = squixl.create_display()
 
+    # Bit bang the screen initialisation
     squixl.screen_init_spi_bitbanged()
 
+    # Create a framebuf from the screen buffer
     fb = framebuf.FrameBuffer(buf, 480, 480, framebuf.RGB565)
+
+    # Create a CWrite device for the screen using the same framebuf so we can have custom fonts
+    wbuf = WriterDevice(fb)
+
+    font_light_16 = CWriter(wbuf, robotomono_light_16, fgcolor=WHITE, verbose=False)
+    font_bolt_18 = CWriter(wbuf, robotomono_bold_18, fgcolor=WHITE, verbose=False)
+   
+
+    # Create the UI manager and pass it the CWrite buffer so we can have custom fonts
+    # The UI Manager uses the Robotomono_Light_16 font as a default
+    mgr = UIManager(wbuf, font_light_16)
+
 
     fb.fill(0x2112)
     fb.text("Hey! It's SQUiXL in MicroPython!", 100, 50, 0xffe0)
 
-    mgr = UIManager(fb)
+
     # Dark grey background
     settings = UIScreen('settings', bg_color=rgb_to_565(50, 50, 50))
     mgr.add_screen(settings)
@@ -133,6 +165,7 @@ with squixl as squixl:
             bg_color=rgb_to_565(60, 60, 60),
             text_color=button_cols[button_index]
         )
+        btn.set_font(font_bolt_18)
         settings.add_control(btn)
         btn_x += btn_w + 20
         button_index += 1
