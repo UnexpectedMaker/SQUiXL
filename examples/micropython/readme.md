@@ -30,3 +30,11 @@ More advanced audio support will follow soon.
 New MP firmware has been added that fixes multi touch tracking of up to 5 fingers, and a `multi_touch.py` example has been added to see how this works.
 
 The `multi_touch.py` example will not work without first flashing the 29-06-2025 build of MP for SQUiXL on your device.
+
+### Custom font support in UI Example
+I have added basic custom font support using [Peter Hinch's micropython-font-to-py](https://github.com/peterhinch/micropython-font-to-py) work.
+
+- You set a default font on the UI Manager that is the fallback font used for all controls
+- You can set fonts per control using the control.set-font() function and pass in a pre configured font
+- Labels will use the ui_screen background color by default if no bg_color is set for the label - it was black.
+- I have included a bunch of RobotoMono light/bold fonts to match what I am using in the official FW, for consistency, but folks can make/add their own fonts as desired.
