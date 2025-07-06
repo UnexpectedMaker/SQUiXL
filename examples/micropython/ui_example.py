@@ -32,7 +32,10 @@ from squixl_ui import (
     TOUCH_DRAG,
     TOUCH_DRAG_END,
     rgb_to_565,
-    WriterDevice
+    WriterDevice,
+    ALIGNMENT_LEFT,
+    ALIGNMENT_CENTER,
+    ALIGNMENT_RIGHT
 )
 
 # The SQUiXL library now supports context managers, so we now intitialise the library using a with block, which will automatically deinit() the LCD peripheral when you exit back to the REPL.
@@ -93,7 +96,7 @@ with squixl as squixl:
             x_pos = 20
         settings.add_control(chk)
 
-    # Brightness slider at y=220
+    # Brightness slider at y=200
     bright_lbl = UILabel(20, 200, 0, 0, 'Brightness: 50', fg_color=rgb_to_565(255, 255, 0))
     settings.add_control(bright_lbl)
     bright_sld = UISlider(
@@ -106,8 +109,9 @@ with squixl as squixl:
     )
     settings.add_control(bright_sld)
 
-    # Volume slider at y=280
-    vol_lbl = UILabel(20, 260, 0, 0, 'Volume: 50', fg_color=rgb_to_565(255, 128, 128))
+    # Volume slider at y=260
+    vol_lbl = UILabel(20, 260, 440, 0, 'Volume: 50', fg_color=rgb_to_565(255, 128, 128))
+    vol_lbl.set_alignment(ALIGNMENT_RIGHT)
     settings.add_control(vol_lbl)
     vol_sld = UISlider(
         x=20, y=280, w=440, h=30,
@@ -119,8 +123,9 @@ with squixl as squixl:
     )
     settings.add_control(vol_sld)
 
-    # CPU usage bar at y=340
-    cpu_lbl = UILabel(20, 320, 0, 0, 'CPU Usage', fg_color=rgb_to_565(255, 128, 0))
+    # CPU usage bar at y=320
+    cpu_lbl = UILabel(20, 320, 440, 0, 'CPU Usage', fg_color=rgb_to_565(255, 128, 0))
+    cpu_lbl.set_alignment(ALIGNMENT_CENTER)
     settings.add_control(cpu_lbl)
     cpu_pb = UIProgressBar(
         x=20, y=340, w=440, h=25,
@@ -153,7 +158,7 @@ with squixl as squixl:
         exiting = True
 
     callbacks = [on_apply, on_reset, on_exit]
-    btn_x = 20
+    btn_x = 40
     button_cols = [rgb_to_565(255, 0, 0), rgb_to_565(0, 255, 0), rgb_to_565(0, 0, 255)]
     button_index = 0
     for lbl, cb in zip(labels, callbacks):

@@ -38,3 +38,13 @@ I have added basic custom font support using [Peter Hinch's micropython-font-to-
 - You can set fonts per control using the control.set-font() function and pass in a pre configured font
 - Labels will use the ui_screen background color by default if no bg_color is set for the label - it was black.
 - I have included a bunch of RobotoMono light/bold fonts to match what I am using in the official FW, for consistency, but folks can make/add their own fonts as desired.
+
+### UI Label alignment
+UI Label now has a `set_alignment()` function that accepts:
+- ALIGNMENT_LEFT
+- ALIGNMENT_CENTER
+- ALIGNMENT_RIGHT
+
+Alignment will be calculated based on the font max_width() and the width of the label. If the label width is set to 0 on initialisiton, the alignmet setting won't do anything.
+
+The `ui_example` project has been updated to show the alignment working on the sliders and progress bar.

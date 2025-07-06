@@ -5,6 +5,7 @@ import framebuf
 # https://github.com/peterhinch/micropython-font-to-py
 from writer import CWriter
 from boolpalette import BoolPalette
+from time import sleep_ms
 
 # Configuration
 TOUCH_PADDING = 5  # Extra pixels around each control for easier touching
@@ -20,6 +21,11 @@ TOUCH_SWIPE_LEFT = 6
 TOUCH_DRAG       = 7
 TOUCH_DRAG_END   = 8
 TOUCH_UNKNOWN    = 9
+
+
+ALIGNMENT_LEFT = 0
+ALIGNMENT_CENTER = 1
+ALIGNMENT_RIGHT = 2
 
 # Helper: Convert 8-bit RGB to 16-bit RGB565
 def rgb_to_565(r, g, b):
@@ -70,8 +76,10 @@ class UIControl:
         self.text_color = text_color
         self.font = None
         self.manager = None  # Set by UIManager
+        self.align = ALIGNMENT_LEFT
+        self.align_offset = 0
 
-    def draw(self, buf: framebuf.FrameBuffer):
+    def draw(self):
         raise NotImplementedError
 
     def within_bounds(self, x, y, w=None, h=None, pad=None):
@@ -99,20 +107,32 @@ class UIControl:
 
 class UILabel(UIControl):
     """A simple text label."""
-    def draw(self, buf):
-        if self.font is not None:
-            print_text(buf, self.font, self.title, self.x, self.y, self.text_color, self.get_back_color())
-        elif self.manager:
-            print_text(buf, self.manager.font, self.title, self.x, self.y, self.text_color, self.get_back_color())
-        # buf.text(self.title, self.x, self.y, self.text_color)
+    def draw(self):
+        if self.manager is None:
+            return
+        
+        _font = self.font if self.font is not None else self.manager.font
+        
+        self.align_offset = 0
+        if self.align != ALIGNMENT_LEFT and self.w > 0:
+            text_width_pixels = len(self.title) * _font.font.max_width()
+            if self.align == ALIGNMENT_RIGHT:
+               self.align_offset = self.w - text_width_pixels
+            elif self.align == ALIGNMENT_CENTER:
+                self.align_offset = int(self.w/2 - text_width_pixels/2)
+
+        print_text(self.manager.buf, _font, self.title, self.x + self.align_offset, self.y, self.text_color, self.get_back_color())
 
     def set_text(self, text):
-        if self.manager:
-            self.manager.buf.text(self.title, self.x, self.y, self.manager.current_screen.bg_color)
-
         self.title = text
-        if self.manager:
-            self.draw(self.manager.buf)
+
+        _font = self.font if self.font is not None else self.manager.font
+        self.manager.buf.rect(self.x + self.align_offset, self.y, self.w, _font.height, self.get_back_color(), True)
+        
+        self.draw()
+
+    def set_alignment(self, align):
+        self.align = align
 
     def process_touch(self, evt: TouchEvent):
         # Labels don't consume touches, but log for debug
@@ -126,42 +146,39 @@ class UIButton(UIControl):
         super().__init__(x, y, w, h, title, callback, fg_color, bg_color, text_color)
         self.flash = False
 
-    def draw(self, buf):
+    def draw(self):
+        if self.manager is None:
+            return
+        
         fill = self.fg_color if self.flash else self.bg_color
         border = self.text_color if self.flash else self.fg_color
         textcol = self.bg_color if self.flash else self.text_color
-        buf.rect_round(self.x, self.y, self.w, self.h, 10, fill, True)
-        buf.rect_round(self.x, self.y, self.w, self.h, 10, border)
-        
-        if self.font is not None:
-            tw = len(self.title) * self.font.font.max_width()
-            tx = self.x + (self.w - tw) // 2
-            ty = self.y + (self.h - self.font.height) // 2
-            print_text(buf, self.font, self.title, tx, ty, textcol, self.bg_color)
-        elif self.manager:
-            tw = len(self.title) * self.manager.font.font.max_width()
-            tx = self.x + (self.w - tw) // 2
-            ty = self.y + (self.h - self.manager.font.height) // 2
-            print_text(buf, self.manager.font, self.title, tx, ty, textcol, self.bg_color)
-        
-        # buf.text(self.title, tx, ty, textcol)
+        self.manager.buf.rect_round(self.x, self.y, self.w, self.h, 10, fill, True)
+        self.manager.buf.rect_round(self.x, self.y, self.w, self.h, 10, border)
 
+        _font = self.font if self.font is not None else self.manager.font
+        
+        tw = len(self.title) * _font.font.max_width()
+        tx = self.x + (self.w - tw) // 2
+        ty = self.y + (self.h - _font.height) // 2
+        print_text(self.manager.buf, _font, self.title, tx, ty, textcol, self.bg_color)
+        
     def process_touch(self, evt: TouchEvent):
         # print(f"UIButton '{self.title}' touch at ({evt.x},{evt.y}) type={evt.type}")
         if evt.type == TOUCH_TAP and self.within_bounds(evt.x, evt.y):
             self.flash = True
-            self.draw(self.manager.buf)
+            self.draw()
             if self.callback:
                 self.callback()
             self.flash = False
-            self.draw(self.manager.buf)
+            self.draw()
             return True
         return False
 
     def set_text(self, text):
         self.title = text
         if self.manager:
-            self.draw(self.manager.buf)
+            self.draw()
 
 class UISlider(UIControl):
     """A horizontal slider for selecting a value."""
@@ -176,15 +193,18 @@ class UISlider(UIControl):
         self.knob_color = knob_color
         self.dragging = False
 
-    def draw(self, buf):
-        buf.rect_round(self.x, self.y, self.w, self.h, 5, self.bg_color, True)
+    def draw(self):
+        if self.manager is None:
+            return
+
+        self.manager.buf.rect_round(self.x, self.y, self.w, self.h, 5, self.bg_color, True)
         mid_y = self.y + self.h // 2
-        buf.hline(self.x, mid_y, self.w, self.fg_color)
+        self.manager.buf.hline(self.x, mid_y, self.w, self.fg_color)
         rel = (self.value - self.min) / (self.max - self.min) if self.max != self.min else 0
         rel = max(0, min(1, rel))
         kx = self.x + int(rel * (self.w - 4))
-        buf.fill_rect(kx, self.y + 1, 4, self.h - 2, self.knob_color)
-        buf.rect_round(self.x, self.y, self.w, self.h, 5, self.fg_color)
+        self.manager.buf.rect(kx, self.y + 1, 4, self.h - 2, self.knob_color, True)
+        self.manager.buf.rect_round(self.x, self.y, self.w, self.h, 5, self.fg_color)
 
     def process_touch(self, evt: TouchEvent):
         # print(f"UISlider touch at ({evt.x},{evt.y}) type={evt.type}")
@@ -193,19 +213,19 @@ class UISlider(UIControl):
             rel = max(0, min(1, rel))
             self.value = self.min + rel * (self.max - self.min)
             self.dragging = True
-            self.draw(self.manager.buf)
+            self.draw()
             if self.callback:
                 self.callback(self.value)
             return True
         if evt.type == TOUCH_DRAG_END and self.dragging:
             self.dragging = False
-            self.draw(self.manager.buf)
+            self.draw()
             return True
         return False
 
     def set_value(self, val):
         self.value = max(self.min, min(self.max, val))
-        self.draw(self.manager.buf)
+        self.draw()
 
 class UICheckBox(UIControl):
     """A checkbox with a label; dark style with clear on/off indication."""
@@ -217,22 +237,25 @@ class UICheckBox(UIControl):
         self.checked = checked
         self.check_color = check_color
 
-    def draw(self, buf):
-        buf.rect_round(self.x, self.y, self.w, self.h, 5, self.bg_color, True)
-        buf.rect_round(self.x, self.y, self.w, self.h, 5, self.fg_color)
+    def draw(self):
+        if self.manager is None:
+            return
+        
+        self.manager.buf.rect_round(self.x, self.y, self.w, self.h, 5, self.bg_color, True)
+        self.manager.buf.rect_round(self.x, self.y, self.w, self.h, 5, self.fg_color)
         if self.checked:
             # Draw inner box
             pad = max(3, self.w // 5)
-            buf.rect_round(self.x + pad, self.y + pad,
+            self.manager.buf.rect_round(self.x + pad, self.y + pad,
                           self.w - 2 * pad, self.h - 2 * pad, 3,
                           self.check_color, True)
         # Center label vertically
         ly = self.y + (self.h - 8) // 2
 
         if self.font is not None:
-            print_text(buf, self.font, self.title, self.x + self.w + 6, ly, self.text_color, self.bg_color)
+            print_text(self.manager.buf, self.font, self.title, self.x + self.w + 6, ly, self.text_color, self.bg_color)
         elif self.manager:
-            print_text(buf, self.manager.font, self.title, self.x + self.w + 6, ly, self.text_color, self.bg_color)
+            print_text(self.manager.buf, self.manager.font, self.title, self.x + self.w + 6, ly, self.text_color, self.bg_color)
         # buf.text(self.title, self.x + self.w + 6, ly, self.text_color)
 
     def process_touch(self, evt: TouchEvent):
@@ -240,7 +263,7 @@ class UICheckBox(UIControl):
         ext_w = self.w + 6 + len(self.title) * 8
         if evt.type == TOUCH_TAP and self.within_bounds(evt.x, evt.y, ext_w, self.h):
             self.checked = not self.checked
-            self.draw(self.manager.buf)
+            self.draw()
             if self.callback:
                 self.callback(self.checked)
             return True
@@ -248,7 +271,7 @@ class UICheckBox(UIControl):
 
     def set_checked(self, checked):
         self.checked = checked
-        self.draw(self.manager.buf)
+        self.draw()
 
 class UIProgressBar(UIControl):
     """A non-interactive progress bar."""
@@ -262,17 +285,20 @@ class UIProgressBar(UIControl):
         self.value = value
         self.fill_color = fill_color
 
-    def draw(self, buf):
-        buf.rect_round(self.x, self.y, self.w, self.h, 5, self.bg_color, True)
+    def draw(self):
+        if self.manager is None:
+            return
+        
+        self.manager.buf.rect_round(self.x, self.y, self.w, self.h, 5, self.bg_color, True)
         rel = (self.value - self.min) / (self.max - self.min) if self.max != self.min else 0
         rel = max(0, min(1, rel))
         fill_w = int(rel * (self.w - 2))
-        buf.rect_round(self.x + 1, self.y + 1, fill_w, self.h - 2, 5, self.fill_color, True)
-        buf.rect_round(self.x, self.y, self.w, self.h, 5, self.fg_color)
+        self.manager.buf.rect_round(self.x + 1, self.y + 1, fill_w, self.h - 2, 5, self.fill_color, True)
+        self.manager.buf.rect_round(self.x, self.y, self.w, self.h, 5, self.fg_color)
 
     def set_value(self, val):
         self.value = max(self.min, min(self.max, val))
-        self.draw(self.manager.buf)
+        self.draw()
 
 class UIScreen:
     """A container for grouping controls with a background color."""
@@ -317,7 +343,7 @@ class UIManager:
             return
         self.buf.fill(self.current_screen.bg_color)
         for ctrl in self.current_screen.controls:
-            ctrl.draw(self.buf)
+            ctrl.draw()
 
     def process_touch(self, evt: TouchEvent):
         if self.current_screen is None:
