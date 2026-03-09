@@ -1,0 +1,90 @@
+esphome:
+  name: squixl
+  friendly_name: SQUiXL
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  partitions: partitions.csv
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/UnexpectedMaker/SQUiXL
+      path: esphome/components
+    components: [squixl_display]
+
+i2c:
+  sda: GPIO1
+  scl: GPIO2
+
+# LCA9555 IO expander (register-compatible with TCA9555)
+tca9555:
+  id: io_expander
+  address: 0x20
+
+# Backlight PWM — native ESP32-S3 GPIO40
+output:
+  - platform: ledc
+    id: backlight_pwm
+    pin: GPIO40
+
+light:
+  - platform: monochromatic
+    output: backlight_pwm
+    name: "Backlight"
+    restore_mode: ALWAYS_ON
+
+display:
+  - platform: squixl_display
+    id: squixl_lcd
+    expander_id: io_expander
+    dimensions: 480x480
+    # Expander pin defaults match SQUiXL hardware:
+    #   exp_rst_pin: 1
+    #   exp_mosi_pin: 2
+    #   exp_clk_pin: 3
+    #   exp_cs_pin: 4
+    de_pin: GPIO38
+    pclk_pin: GPIO39
+    hsync_pin: GPIO48
+    vsync_pin: GPIO47
+    color_order: RGB
+    pclk_frequency: 12MHz
+    data_pins:
+      red:
+        - 4   # R5
+        - 5   # R4
+        - 6   # R3
+        - 7   # R2
+        - 8   # R1
+      green:
+        - 9   # G5
+        - 10  # G4
+        - 11  # G3
+        - 12  # G2
+        - 13  # G1
+        - 14  # G0
+      blue:
+        - 15  # B5
+        - 16  # B4
+        - 17  # B3
+        - 18  # B2
+        - 21  # B1
+    enable_pin:
+      - tca9555: io_expander
+        number: 0
+        mode: output
+    lambda: |-
+      it.fill(Color(255, 0, 0));
+      it.filled_rectangle(0, 0, 240, 240, Color(255, 255, 255));
+      it.filled_rectangle(240, 0, 240, 240, Color(0, 0, 255));
+      it.filled_rectangle(0, 240, 240, 240, Color(0, 255, 0));
+      it.filled_rectangle(240, 240, 240, 240, Color(255, 255, 0));
