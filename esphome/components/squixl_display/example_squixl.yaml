@@ -16,14 +16,14 @@ psram:
 
 external_components:
   - source:
-      type: git
-      url: https://github.com/UnexpectedMaker/SQUiXL
-      path: esphome/components
+      type: local
+      path: ../../custom_components
     components: [squixl_display]
 
 i2c:
   sda: GPIO1
   scl: GPIO2
+  frequency: 400kHz
 
 # LCA9555 IO expander (register-compatible with TCA9555)
 tca9555:
@@ -88,3 +88,18 @@ display:
       it.filled_rectangle(240, 0, 240, 240, Color(0, 0, 255));
       it.filled_rectangle(0, 240, 240, 240, Color(0, 255, 0));
       it.filled_rectangle(240, 240, 240, 240, Color(255, 255, 0));
+
+logger:
+  level: DEBUG
+
+# GT911 capacitive touch — reset handled by squixl_display component
+# Do NOT set reset_pin here — our component does the reset with correct INT state
+# I2C address is 0x14 (INT HIGH during reset selects this address)
+touchscreen:
+  - platform: gt911
+    id: squixl_touch
+    address: 0x14
+    interrupt_pin: GPIO3
+    on_touch:
+      - lambda: |-
+          ESP_LOGI("touch", "Touch at (%d, %d)", touch.x, touch.y);

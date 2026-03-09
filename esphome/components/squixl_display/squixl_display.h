@@ -20,8 +20,11 @@ class SQUiXLDisplay : public mipi_rgb::MipiRgb {
   void set_exp_mosi_pin(uint8_t pin) { this->exp_mosi_pin_ = pin; }
   void set_exp_clk_pin(uint8_t pin) { this->exp_clk_pin_ = pin; }
   void set_exp_cs_pin(uint8_t pin) { this->exp_cs_pin_ = pin; }
+  void set_exp_touch_rst_pin(uint8_t pin) { this->exp_touch_rst_pin_ = pin; }
+  void set_touch_int_pin(uint8_t pin) { this->touch_int_pin_ = pin; }
 
  protected:
+  void touch_reset_();
   void hardware_reset_();
   void write_9bit_(bool dc, uint8_t data);
   void write_init_sequence_();
@@ -32,6 +35,8 @@ class SQUiXLDisplay : public mipi_rgb::MipiRgb {
   uint8_t exp_mosi_pin_{2};
   uint8_t exp_clk_pin_{3};
   uint8_t exp_cs_pin_{4};
+  uint8_t exp_touch_rst_pin_{5};
+  uint8_t touch_int_pin_{3};
 };
 
 }  // namespace squixl_display

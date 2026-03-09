@@ -30,6 +30,8 @@ CONF_EXP_RST_PIN = "exp_rst_pin"
 CONF_EXP_MOSI_PIN = "exp_mosi_pin"
 CONF_EXP_CLK_PIN = "exp_clk_pin"
 CONF_EXP_CS_PIN = "exp_cs_pin"
+CONF_EXP_TOUCH_RST_PIN = "exp_touch_rst_pin"
+CONF_TOUCH_INT_PIN = "touch_int_pin"
 CONF_DE_PIN = "de_pin"
 CONF_PCLK_PIN = "pclk_pin"
 CONF_PCLK_FREQUENCY = "pclk_frequency"
@@ -146,6 +148,12 @@ CONFIG_SCHEMA = cv.All(
                 cv.Optional(CONF_EXP_CS_PIN, default=4): cv.int_range(
                     min=0, max=15
                 ),
+                cv.Optional(CONF_EXP_TOUCH_RST_PIN, default=5): cv.int_range(
+                    min=0, max=15
+                ),
+                cv.Optional(CONF_TOUCH_INT_PIN, default=3): cv.int_range(
+                    min=0, max=48
+                ),
                 cv.Optional(CONF_INIT_SEQUENCE): cv.ensure_list(map_sequence),
                 cv.Optional(CONF_COLOR_ORDER, default="BGR"): cv.one_of(
                     *COLOR_ORDERS.keys(), upper=True
@@ -198,6 +206,8 @@ async def to_code(config):
     cg.add(var.set_exp_mosi_pin(config[CONF_EXP_MOSI_PIN]))
     cg.add(var.set_exp_clk_pin(config[CONF_EXP_CLK_PIN]))
     cg.add(var.set_exp_cs_pin(config[CONF_EXP_CS_PIN]))
+    cg.add(var.set_exp_touch_rst_pin(config[CONF_EXP_TOUCH_RST_PIN]))
+    cg.add(var.set_touch_int_pin(config[CONF_TOUCH_INT_PIN]))
 
     # Init sequence — use custom if provided, otherwise SQUiXL default
     if CONF_INIT_SEQUENCE in config:

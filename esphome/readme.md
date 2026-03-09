@@ -2,6 +2,11 @@
 
 This component allows SQUiXL to work with ESPHome and Home Assistant without requiring any ESPHome source file changes.
 
+Currently supports:
+
+- Screen display
+- Single finger touch
+
 ## Requirements
 
 - ESPHome 2024.x or later
@@ -38,6 +43,7 @@ external_components:
 i2c:
   sda: GPIO1
   scl: GPIO2
+  frequency: 400kHz
 
 tca9555:
   id: io_expander
@@ -87,6 +93,13 @@ display:
       - tca9555: io_expander
         number: 0
         mode: output
+
+# GT911 capacitive touch — reset handled by squixl_display component
+# Do NOT set reset_pin here
+touchscreen:
+  - platform: gt911
+    address: 0x14
+    interrupt_pin: GPIO3
 ```
 
 ## How It Works
@@ -94,6 +107,8 @@ display:
 The SQUiXL display uses an ST7701S controller with a standard ESP32-S3 RGB parallel bus for pixel data. However, the display's SPI init lines (CS, CLK, MOSI, Reset) are wired through an LCA9555 IO expander over I2C instead of native GPIO.
 
 This component handles that by bit-banging the SPI init sequence through the IO expander during startup, then handing off to ESPHome's standard RGB display driver for all pixel operations.
+
+The GT911 capacitive touch controller's reset pin is also on the IO expander (pin 5). This component handles the GT911 reset with the correct INT pin state for I2C address selection. ESPHome's stock `gt911` touchscreen component is then used for touch events — do **not** set `reset_pin` in the GT911 config.
 
 The LCA9555 is register-compatible with the TCA9555, so ESPHome's existing `tca9555` component is used directly.
 
@@ -119,6 +134,8 @@ The LCA9555 is register-compatible with the TCA9555, so ESPHome's existing `tca9
 | `exp_mosi_pin` | `2` | LCA9555 pin for LCD SPI data |
 | `exp_clk_pin` | `3` | LCA9555 pin for LCD SPI clock |
 | `exp_cs_pin` | `4` | LCA9555 pin for LCD SPI CS |
+| `exp_touch_rst_pin` | `5` | LCA9555 pin for GT911 touch reset |
+| `touch_int_pin` | `3` | ESP32-S3 GPIO for GT911 interrupt |
 | `pclk_frequency` | `12MHz` | Pixel clock frequency |
 | `pclk_inverted` | `true` | Invert pixel clock |
 | `color_order` | `BGR` | Color order (RGB or BGR) |
