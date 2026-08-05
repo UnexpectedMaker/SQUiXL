@@ -70,25 +70,27 @@ display:
     hsync_pin: GPIO48
     vsync_pin: GPIO47
     data_pins:
+      # Lists are LSB-first: the first pin in each list maps to that
+      # channel's lowest data-bus bit
       red:
-        - 4
-        - 5
-        - 6
-        - 7
         - 8
+        - 7
+        - 6
+        - 5
+        - 4
       green:
-        - 9
-        - 10
-        - 11
-        - 12
-        - 13
         - 14
+        - 13
+        - 12
+        - 11
+        - 10
+        - 9
       blue:
-        - 15
-        - 16
-        - 17
-        - 18
         - 21
+        - 18
+        - 17
+        - 16
+        - 15
     enable_pin:
       - tca9555: io_expander
         number: 0
