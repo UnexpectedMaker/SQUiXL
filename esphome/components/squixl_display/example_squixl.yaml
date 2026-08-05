@@ -59,25 +59,27 @@ display:
     color_order: RGB
     pclk_frequency: 12MHz
     data_pins:
+      # Lists are LSB-first: the first pin in each list maps to that
+      # channel's lowest data-bus bit
       red:
-        - 4   # R5
-        - 5   # R4
-        - 6   # R3
-        - 7   # R2
         - 8   # R1
+        - 7   # R2
+        - 6   # R3
+        - 5   # R4
+        - 4   # R5
       green:
-        - 9   # G5
-        - 10  # G4
-        - 11  # G3
-        - 12  # G2
-        - 13  # G1
         - 14  # G0
+        - 13  # G1
+        - 12  # G2
+        - 11  # G3
+        - 10  # G4
+        - 9   # G5
       blue:
-        - 15  # B5
-        - 16  # B4
-        - 17  # B3
-        - 18  # B2
         - 21  # B1
+        - 18  # B2
+        - 17  # B3
+        - 16  # B4
+        - 15  # B5
     enable_pin:
       - tca9555: io_expander
         number: 0
